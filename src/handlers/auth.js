@@ -6,8 +6,8 @@ const regexEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const regexPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
 
 /*
-Login in to user account
-Flow : we should be validating email, pass --> attach a refresh token to the new user in db (note that the refresh token will be revokes after logout)
+Register an account
+Flow : validate email + password format --> create the user in the db (password is hashed in the service)
 */
 const register = async (req,res) => {
     const {email, password} = req.body
@@ -32,25 +32,34 @@ const register = async (req,res) => {
     }
 }
 
-/* 
-Register an account
-Flow : Attatch a new refresh token --> attacth a access token 
+/*
+Login to a user account
+Flow : validate email + that a password was sent --> check credentials against the db
+       (token will be added here later)
 */
 const login = async (req,res) => {
     const {email, password} = req.body
 
-    // this will test if the email and password pass the regex
+    // basic input checks (we don't enforce the password regex on login,
+    // just make sure something was sent)
     if (!regexEmail.test(email)) {
-        return res.status(400).json({ message: 'Invalid username' });
+        return res.status(400).json({ message: 'Invalid email format' });
     }
-    if (!regexPassword.test(password)) {
-        return res.status(400).json({ message: 'Invalid Password' });
+    if (!password || password.length < 1) {
+        return res.status(400).json({ message: 'Enter a password' });
     }
-    }
-    try{
 
-    } catch (err){
-
+    try {
+        const user = await authenticate.login(email, password);
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+        return res.status(200).json({ message: 'Login Success' });
+        
+    } catch (err) {
+        console.error('login failed:', err);
+        return res.status(500).json({ message: 'Something went wrong' });
     }
+}
 
 module.exports = { login, register };
