@@ -19,7 +19,6 @@ const register = async (req,res) => {
     if (!regexPassword.test(password)) {
         return res.status(400).json({ message: 'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character' });
     }
-
     try {
         const user = await authenticate.register(email, password);
         return res.status(201).json({message: 'User created' });
@@ -55,7 +54,7 @@ const login = async (req,res) => {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
         return res.status(200).json({ message: 'Login Success' });
-        
+
     } catch (err) {
         console.error('login failed:', err);
         return res.status(500).json({ message: 'Something went wrong' });

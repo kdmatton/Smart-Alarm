@@ -1,5 +1,7 @@
 const db = require('../config/db')
+const crypto = require('crypto')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 
 const SALT_ROUNDS = 10
 
@@ -42,8 +44,37 @@ async function login (email, password) {
     const match = await bcrypt.compare(password, user.password)
     if (!match) return null
 
-    // if pass both checks
-    return { userid: user.userid, email: user.email }
+    // get user and email for payload
+    const userId = user.userid
+    const userEmail = user.email
+    
+    // access token
+    const accessToken = jwt.sign(
+        {id: userId,email: userEmail},
+        process.env.JWT_SECRET,
+        {expiresIn: '30m'}
+    )
+    // refresh token
+    const refreshToken = jwt.sign(
+        {id: userId},
+        process.env.JWT_SECRET,
+        {expiresIn: '7d'}
+    )
+   
+    const hashedRefreshToken = crypto.createHash('sha256').update(refreshToken).digest('hex')
+
+    // re writes existing 
+    await db.query(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days')
+         ON CONFLICT (user_id)
+         DO UPDATE SET token_hash = EXCLUDED.token_hash,
+                       expires_at = EXCLUDED.expires_at,
+                       created_at = NOW(),
+                       revoked    = FALSE`,
+        [userId, hashedRefreshToken]
+    );
+    return { accessToken, refreshToken }
 }
 
 module.exports = { register,login }
