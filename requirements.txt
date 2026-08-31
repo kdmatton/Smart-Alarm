@@ -3,3 +3,5 @@ bcrypt
 jsonwebtoken
 pg
 dotenv
+express-rate-limit
+crypto
