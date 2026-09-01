@@ -14,6 +14,7 @@ app.use(cookieParser());
 // route modules which we just mount on top of the top level routes which are below 
 app.use('/', require('./routes/user'))
 app.use('/auth', require('./routes/auth'))
+app.use('/alarm', require('./routes/alarms'))
 
 // starts the server
 app.listen(port, () => {
