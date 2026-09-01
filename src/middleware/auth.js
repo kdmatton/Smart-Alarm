@@ -3,16 +3,8 @@ const { refreshAccessToken } = require('../services/auth')
 const { setAccessCookie } = require('../config/authCookies')
 
 /*
-requireAuth - gate for protected routes.
-
-  1. access token valid              -> attach req.user, continue
-  2. access token missing/expired/bad -> try the refresh token; if it checks out,
-                                        set a new access-token cookie and continue
-  3. refresh token also no good      -> 401
-
-The refresh happens here rather than through a separate /auth/refresh call, so
-the client never has to notice a token expired - it just keeps making requests
-and the middleware quietly tops up the access token.
+we require auth for given routes
+we also silent refresh if expired, utilise the function from services/auth
 */
 async function requireAuth(req, res, next) {
     const { accessToken, refreshToken } = req.cookies || {}

@@ -1,9 +1,5 @@
 /*
-One place for the auth-cookie settings.
-
-Both the login handler and the silent-refresh middleware set the accessToken
-cookie, so the options live here to keep them identical - a mismatch (e.g. one
-path missing `secure`) is the kind of bug that only shows up in production.
+this are the setting for setting token setting and cookies
 */
 
 // shared across both cookies
