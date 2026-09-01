@@ -1,5 +1,6 @@
 // this imports files froms services, allowing us to actually utilize the functions
 const authenticate = require('../services/auth')
+const { setAccessCookie, setRefreshCookie } = require('../config/authCookies')
 
 // this is for regex for email and password, determmines if email and password is valid
 const regexEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -34,7 +35,11 @@ const register = async (req,res) => {
 /*
 Login to a user account
 Flow : validate email + that a password was sent --> check credentials against the db
-       (token will be added here later)
+       --> set the access + refresh tokens as httpOnly cookies
+
+Both cookies ride on every request. The auth middleware verifies the access
+token and, when it has expired, uses the refresh token to silently issue a new
+one - so the client never has to handle token expiry itself.
 */
 const login = async (req,res) => {
     const {email, password} = req.body
@@ -49,10 +54,14 @@ const login = async (req,res) => {
     }
 
     try {
-        const user = await authenticate.login(email, password);
-        if (!user) {
+        const tokens = await authenticate.login(email, password);
+        if (!tokens) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
+
+        setAccessCookie(res, tokens.accessToken);
+        setRefreshCookie(res, tokens.refreshToken);
+
         return res.status(200).json({ message: 'Login Success' });
 
     } catch (err) {

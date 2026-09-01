@@ -5,6 +5,6 @@ const rateLimiter = require('../middleware/rateLimiter')
 // router modules, these will be mounted in app.js
 
 router.post('/register', authHandler.register)
-router.post('/login', authHandler.login)
+router.post('/login', rateLimiter.loginLimit, authHandler.login)
 
 module.exports = router

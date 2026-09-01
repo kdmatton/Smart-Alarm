@@ -4,12 +4,14 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
 const SALT_ROUNDS = 10
+const ACCESS_TOKEN_TTL = '30m'
+const REFRESH_TOKEN_TTL = '7d'
 
 /*
 Register User account
 */
 async function register(email, password) {
-    // hash password 
+    // hash password
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
 
     // attempts to add into db and if err occurs we catch and throw err
@@ -26,10 +28,35 @@ async function register(email, password) {
             takenError.code = 'EMAIL_TAKEN'
             throw takenError
         }
-        // throw err code that may happen 
+        // throw err code that may happen
         throw err
     }
 }
+
+/* --- token helpers ------------------------------------------------------- */
+
+// access token: carries id + email, short lived, sent on every request
+function signAccessToken({ id, email }) {
+    return jwt.sign({ id, email }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL })
+}
+
+// refresh token: carries only id, long lived, only used to mint access tokens
+function signRefreshToken({ id }) {
+    return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: REFRESH_TOKEN_TTL })
+}
+
+// we persist only a hash of the refresh token - same reasoning as password hashing
+function hashToken(token) {
+    return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+// constant-time compare so response timing can't be used to guess the stored hash
+function tokenHashMatches(token, storedHash) {
+    const a = Buffer.from(hashToken(token), 'hex')
+    const b = Buffer.from(storedHash, 'hex')
+    return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
 
 async function login (email, password) {
     const result = await db.query(
@@ -44,26 +71,11 @@ async function login (email, password) {
     const match = await bcrypt.compare(password, user.password)
     if (!match) return null
 
-    // get user and email for payload
-    const userId = user.userid
-    const userEmail = user.email
-    
-    // access token
-    const accessToken = jwt.sign(
-        {id: userId,email: userEmail},
-        process.env.JWT_SECRET,
-        {expiresIn: '30m'}
-    )
-    // refresh token
-    const refreshToken = jwt.sign(
-        {id: userId},
-        process.env.JWT_SECRET,
-        {expiresIn: '7d'}
-    )
-   
-    const hashedRefreshToken = crypto.createHash('sha256').update(refreshToken).digest('hex')
+    const account = { id: user.userid, email: user.email }
+    const accessToken = signAccessToken(account)
+    const refreshToken = signRefreshToken(account)
 
-    // re writes existing 
+    // store the hash - one row per user, logging in again overwrites it
     await db.query(
         `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
          VALUES ($1, $2, NOW() + INTERVAL '7 days')
@@ -72,9 +84,44 @@ async function login (email, password) {
                        expires_at = EXCLUDED.expires_at,
                        created_at = NOW(),
                        revoked    = FALSE`,
-        [userId, hashedRefreshToken]
+        [account.id, hashToken(refreshToken)]
     );
+
     return { accessToken, refreshToken }
 }
 
-module.exports = { register,login }
+/*
+Silent refresh.
+Given the refresh token from the request cookie we recreate an access token
+*/
+async function refreshAccessToken(refreshToken) {
+    if (!refreshToken) return null
+
+    // 1. signature + expiry
+    let payload
+    try {
+        payload = jwt.verify(refreshToken, process.env.JWT_SECRET)
+    } catch {
+        return null
+    }
+
+    // compare against what we stored 
+    const { rows } = await db.query(
+        `SELECT rt.token_hash, rt.revoked, rt.expires_at, u.email
+         FROM refresh_tokens rt
+         JOIN users u ON u.userid = rt.user_id
+         WHERE rt.user_id = $1`,
+        [payload.id]
+    )
+    const row = rows[0]
+    if (!row) return null
+    if (row.revoked) return null
+    if (new Date(row.expires_at) < new Date()) return null
+    if (!tokenHashMatches(refreshToken, row.token_hash)) return null
+
+    // return new access token
+    const account = { id: payload.id, email: row.email }
+    return { accessToken: signAccessToken(account), user: account }
+}
+
+module.exports = { register, login, refreshAccessToken }
