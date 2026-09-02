@@ -12,7 +12,7 @@ app.use(cookieParser());
 
 // route mount, this essentially acts as the top level of routes, and the routes directory contains 
 // route modules which we just mount on top of the top level routes which are below 
-app.use('/', require('./routes/user'))
+//app.use('/', require('./routes/user'))
 app.use('/auth', require('./routes/auth'))
 app.use('/alarm', require('./routes/alarms'))
 

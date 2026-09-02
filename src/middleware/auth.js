@@ -15,8 +15,6 @@ async function requireAuth(req, res, next) {
             req.user = { id: payload.id, email: payload.email }
             return next()
         } catch {
-            // expired / malformed / bad signature - fall through to the refresh
-            // token below, which is what actually decides whether to allow this
         }
     }
 
@@ -33,9 +31,9 @@ async function requireAuth(req, res, next) {
     if (!refreshed) {
         return res.status(401).json({ message: 'Session expired, please log in again' })
     }
-
+    // call set access cookie function from handlers 
     setAccessCookie(res, refreshed.accessToken)
-    req.user = refreshed.user
+    req.user = refreshed.user // .user contains user and acess token, but .user contains the actual claims(id, email)
     next()
 }
 

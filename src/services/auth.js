@@ -95,9 +95,10 @@ Silent refresh.
 Given the refresh token from the request cookie we recreate an access token
 */
 async function refreshAccessToken(refreshToken) {
+    // session expired user has to sign in again
     if (!refreshToken) return null
 
-    // 1. signature + expiry
+    // if user has a refresh token then we verify it with the signarture
     let payload
     try {
         payload = jwt.verify(refreshToken, process.env.JWT_SECRET)
@@ -105,7 +106,7 @@ async function refreshAccessToken(refreshToken) {
         return null
     }
 
-    // compare against what we stored 
+    // after we verify the signature we then check the refreshh token in db to see if it exists
     const { rows } = await db.query(
         `SELECT rt.token_hash, rt.revoked, rt.expires_at, u.email
          FROM refresh_tokens rt
@@ -113,6 +114,7 @@ async function refreshAccessToken(refreshToken) {
          WHERE rt.user_id = $1`,
         [payload.id]
     )
+    // these are all checks to see if refresh token exists
     const row = rows[0]
     if (!row) return null
     if (row.revoked) return null
@@ -120,8 +122,8 @@ async function refreshAccessToken(refreshToken) {
     if (!tokenHashMatches(refreshToken, row.token_hash)) return null
 
     // return new access token
-    const account = { id: payload.id, email: row.email }
-    return { accessToken: signAccessToken(account), user: account }
+    const account = { id: payload.id, email: row.email } // set the email and set the user id
+    return { accessToken: signAccessToken(account), user: account } // 
 }
 
 module.exports = { register, login, refreshAccessToken }
