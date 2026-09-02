@@ -12,3 +12,12 @@ CREATE TABLE refresh_tokens (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     revoked    BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+CREATE TABLE Alarms (
+    alarm_id      SERIAL PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES Users(UserID) ON DELETE CASCADE,
+    time          TEXT NOT NULL,
+    is_enabled    BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX idx_alarms_user_id ON Alarms(user_id);
