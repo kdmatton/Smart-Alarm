@@ -13,11 +13,12 @@ CREATE TABLE refresh_tokens (
     revoked    BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE Alarms (
-    alarm_id      SERIAL PRIMARY KEY,
-    user_id       INTEGER NOT NULL REFERENCES Users(UserID) ON DELETE CASCADE,
-    alarm_time    TIME NOT NULL,
-    day_of_week   int NOT NULL
-    is_enabled    BOOLEAN NOT NULL DEFAULT TRUE
-);
+CREATE TABLE alarms (
+    alarm_id     SERIAL PRIMARY KEY,
+    user_id      INTEGER NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+    alarm_time   TIME(0) NOT NULL,
+    day_of_week  SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    is_enabled   BOOLEAN NOT NULL DEFAULT TRUE,
 
+    CONSTRAINT alarms_user_time_dow_key UNIQUE (user_id, alarm_time, day_of_week)
+);
