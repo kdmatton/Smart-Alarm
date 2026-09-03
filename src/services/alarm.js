@@ -1,5 +1,8 @@
 const db = require('../config/db')
 
+/*
+CREATE THE ALARM
+*/
 async function createAlarm(userId, alarm_time, day_of_week) {
     try {
         const result = await db.query(
@@ -19,4 +22,14 @@ async function createAlarm(userId, alarm_time, day_of_week) {
     }
 }
 
-module.exports = { createAlarm }
+/*
+view alarms
+*/
+async function viewAlarms(id){
+    const result = await db.query(
+        'SELECT * FROM alarms WHERE user_id = $1',
+        [id]
+    )
+    return result.rows
+}
+module.exports = { createAlarm, viewAlarms }
